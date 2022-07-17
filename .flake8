@@ -1,0 +1,8 @@
+[flake8]
+ignore = 
+    # Missing type annotation for self in method
+    ANN101, 
+    # Missing type annotation for cls in classmethod
+    ANN102,
+
+
