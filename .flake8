@@ -1,8 +1,9 @@
 [flake8]
-ignore = 
-    # Missing type annotation for self in method
-    ANN101, 
-    # Missing type annotation for cls in classmethod
+max-line-length = 90
+ignore =
+    ; Missing type annotation for self in method
+    ANN101,
+    ; Missing type annotation for cls in classmethod
     ANN102,
-
-
+    ; Dynamically typed expressions (typing.Any) are disallowed
+    ANN401,
