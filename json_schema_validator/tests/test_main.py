@@ -79,6 +79,8 @@ class JsonSchemaValidatorTest(unittest.TestCase):
         self.assertTrue(JsonValidator(Any([1, 2])).validate([1, 2, 3]))
         self.assertFalse(JsonValidator(Any([1, 2])).validate([2, 1]))
         self.assertTrue(JsonValidator(Any([1, 2, Any(str)])).validate([1, 2, "d"]))
+        self.assertTrue(JsonValidator(Any([Any(int), ...])).validate([1, 2, 3]))
+        self.assertFalse(JsonValidator(Any([Any(int), ...])).validate([1, "2", 3]))
 
     def test_any_set(self) -> None:
         self.assertTrue(JsonValidator(Any({1, 2, Any(str)})).validate([1, 2, 3, "4"]))
@@ -87,3 +89,8 @@ class JsonSchemaValidatorTest(unittest.TestCase):
         self.assertTrue(JsonValidator(Any(bool, "success", "fail")).validate(True))
         self.assertTrue(JsonValidator(Any(bool, "success", "fail")).validate("success"))
         self.assertFalse(JsonValidator(Any(bool, "success", "fail")).validate(1))
+
+    def test_xx(self) -> None:
+        a = Any({"results": Any(bool, "success")})
+        repr(a)
+        print()

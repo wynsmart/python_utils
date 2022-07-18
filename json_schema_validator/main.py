@@ -92,12 +92,20 @@ class AnyList(AnyBase):
     """
 
     def __init__(self, items: t.List[t.Any]) -> None:
-        self.required_items = items
+        # validate the Ellipsis
+        assert ... not in items[:-1], "Ellipsis `...` can only be the last item"
+        assert items != [...], "Ellipsis `...` cannot be the only item"
+        self.has_ellipsis = items[-1] == ...
+        self.required_items = items[:-1] if self.has_ellipsis else items
 
     def eq(self, other: object) -> bool:
         if not isinstance(other, list):
             return False
-        return all(a == b for a, b in zip(self.required_items, other))
+        required_items = self.required_items
+        if self.has_ellipsis:
+            item_to_repeat = self.required_items[-1]
+            required_items += [item_to_repeat] * (len(other) - len(self.required_items))
+        return all(a == b for a, b in zip(required_items, other))
 
     def __repr__(self) -> str:
         return "<AnyList {!r}>".format(self.required_items)
@@ -153,7 +161,7 @@ class AnyUnion(AnyBase):
     """
 
     def __init__(self, objs: t.Iterable[t.Any]) -> None:
-        self.objs = objs
+        self.objs = list(objs)
 
     def __repr__(self) -> str:
         objs_repr = map(repr, self.objs)
