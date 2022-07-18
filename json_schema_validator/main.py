@@ -1,7 +1,3 @@
-"""
-A simple JSON validator by schema
-"""
-
 from __future__ import annotations
 
 import json
@@ -14,8 +10,11 @@ JsonValueType = t.Union[int, float, bool, str, dict, list]
 
 
 class JsonValidator:
-    def __init__(self, schema: t.Any) -> None:
+    """
+    A simple JSON validator by schema
+    """
 
+    def __init__(self, schema: t.Any) -> None:
         self.schema = schema
 
     @staticmethod
