@@ -80,7 +80,7 @@ class AnyDict(AnyBase):
         return all(other.get(k, None) == v for k, v in self.required_dict.items())
 
     def __repr__(self) -> str:
-        return "<AnyDict {}>".format(self.required_dict)
+        return "<AnyDict {!r}>".format(self.required_dict)
 
 
 class AnyList(AnyBase):
@@ -100,7 +100,7 @@ class AnyList(AnyBase):
         return all(a == b for a, b in zip(self.required_items, other))
 
     def __repr__(self) -> str:
-        return "<AnyList {}>".format(self.required_items)
+        return "<AnyList {!r}>".format(self.required_items)
 
 
 class AnySet(AnyBase):
@@ -120,7 +120,7 @@ class AnySet(AnyBase):
         return all(x in other for x in self.required_items)
 
     def __repr__(self) -> str:
-        return "<AnySet {}>".format(self.required_items)
+        return "<AnySet {!r}>".format(self.required_items)
 
 
 class AnyType(AnyBase):
@@ -157,7 +157,7 @@ class AnyUnion(AnyBase):
 
     def __repr__(self) -> str:
         objs_repr = map(repr, self.objs)
-        return "<AnyUnion {}>".format("|".join(objs_repr))
+        return "<AnyUnion {!r}>".format("|".join(objs_repr))
 
     def eq(self, other: object) -> bool:
         return any(obj == other for obj in self.objs)
