@@ -82,3 +82,8 @@ class JsonSchemaValidatorTest(unittest.TestCase):
 
     def test_any_set(self) -> None:
         self.assertTrue(JsonValidator(Any({1, 2, Any(str)})).validate([1, 2, 3, "4"]))
+
+    def test_any_union(self) -> None:
+        self.assertTrue(JsonValidator(Any(bool, "success", "fail")).validate(True))
+        self.assertTrue(JsonValidator(Any(bool, "success", "fail")).validate("success"))
+        self.assertFalse(JsonValidator(Any(bool, "success", "fail")).validate(1))
