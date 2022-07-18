@@ -111,7 +111,7 @@ class AnySet(AnyBase):
     `items`: a set object defining required values
     """
 
-    def __init__(self, items: t.List[t.Any]) -> None:
+    def __init__(self, items: t.Set[t.Any]) -> None:
         self.required_items = items
 
     def eq(self, other: object) -> bool:
