@@ -57,6 +57,21 @@ class JsonSchemaValidatorTest(unittest.TestCase):
             )
         )
 
+    def test_common_usage_2(self) -> None:
+        schema_1 = Any({...: Any({"a": Any(int)})})
+        self.assertTrue(
+            JsonValidator(schema_1).validate(
+                {"l1": {"a": 1}, "l2": {"a": 2, "b": 22}, "l3": {"a": 3}}
+            )
+        )
+        self.assertFalse(
+            JsonValidator(schema_1).validate({"l1": {"a": "1"}, "l2": {"a": 11}})
+        )
+
+        schema_2 = Any([Any(int), ...])
+        self.assertTrue(JsonValidator(schema_2).validate([1, 2, 3]))
+        self.assertFalse(JsonValidator(schema_2).validate([1, 2, "3"]))
+
     def test_without_any(self) -> None:
         self.assertTrue(JsonValidator([1, 2, 3]).validate([1, 2, 3]))
 
@@ -74,11 +89,19 @@ class JsonSchemaValidatorTest(unittest.TestCase):
         self.assertFalse(JsonValidator(Any({})).validate(""))
         self.assertTrue(JsonValidator(Any({})).validate({"a": 1, "b": 2}))
 
+        self.assertTrue(
+            JsonValidator(Any({...: Any(str)})).validate({"a": "aaa", "b": "bbb"})
+        )
+        self.assertFalse(
+            JsonValidator(Any({...: Any(str)})).validate({"a": "aaa", "b": 333})
+        )
+
     def test_any_list(self) -> None:
         self.assertTrue(JsonValidator(Any([1, 2])).validate([1, 2]))
         self.assertTrue(JsonValidator(Any([1, 2])).validate([1, 2, 3]))
         self.assertFalse(JsonValidator(Any([1, 2])).validate([2, 1]))
         self.assertTrue(JsonValidator(Any([1, 2, Any(str)])).validate([1, 2, "d"]))
+
         self.assertTrue(JsonValidator(Any([Any(int), ...])).validate([1, 2, 3]))
         self.assertFalse(JsonValidator(Any([Any(int), ...])).validate([1, "2", 3]))
 
@@ -89,6 +112,8 @@ class JsonSchemaValidatorTest(unittest.TestCase):
         self.assertTrue(JsonValidator(Any(bool, "success", "fail")).validate(True))
         self.assertTrue(JsonValidator(Any(bool, "success", "fail")).validate("success"))
         self.assertFalse(JsonValidator(Any(bool, "success", "fail")).validate(1))
+
+        self.assertTrue(JsonValidator(Any(bool) | "success" | "fail").validate(True))
 
     def test_xx(self) -> None:
         a = Any({"results": Any(bool, "success")})

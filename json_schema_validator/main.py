@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 DEBUG = False  # enable debug to raise errors for non-match
 
 JsonValueType = t.Union[int, float, bool, str, dict, list]
+TAny = t.TypeVar("TAny", bound="AnyBase")
 
 
 class JsonValidator:
@@ -19,6 +20,9 @@ class JsonValidator:
 
     @staticmethod
     def debug(enable: bool) -> None:
+        """
+        Set debug mode
+        """
         global DEBUG
         DEBUG = enable
 
@@ -42,10 +46,15 @@ class AnyBase(ABC):
     """
 
     @abstractmethod
-    def eq(self, other: object) -> bool:
+    def eq(self, other: t.Any) -> bool:
+        """Overload `==` operator"""
         pass
 
-    def __eq_impl(self, other: object) -> bool:
+    def union(self: TAny, other: t.Any) -> TAny:
+        """Overload `|` operator"""
+        return Any(self, other)
+
+    def __eq_impl(self, other: t.Any) -> bool:
         is_equal = self.eq(other)
         if DEBUG and not is_equal:
             raise TypeError(
@@ -53,14 +62,20 @@ class AnyBase(ABC):
             )
         return is_equal
 
-    def __eq__(self, other: object) -> bool:
+    def __eq__(self, other: t.Any) -> bool:
         return self.__eq_impl(other)
 
-    def __req__(self, other: object) -> bool:
+    def __req__(self, other: t.Any) -> bool:
         return self.__eq_impl(other)
 
     def __hash__(self) -> int:
         return super().__hash__()
+
+    def __or__(self: TAny, other: t.Any) -> TAny:
+        return self.union(other)
+
+    def __ror__(self: TAny, other: t.Any) -> TAny:
+        return self.union(other)
 
 
 class AnyDict(AnyBase):
@@ -72,12 +87,20 @@ class AnyDict(AnyBase):
     """
 
     def __init__(self, schema: t.Dict[str, t.Any]) -> None:
+        self.has_ellipsis = ... in schema
         self.required_dict = schema
 
-    def eq(self, other: object) -> bool:
+    def eq(self, other: t.Any) -> bool:
+        """Override"""
         if not isinstance(other, dict):
             return False
-        return all(other.get(k, None) == v for k, v in self.required_dict.items())
+        required_dict = {k: v for k, v in self.required_dict.items() if k != ...}
+        if self.has_ellipsis:
+            item_to_repeat = self.required_dict[...]
+            required_dict.update(
+                {k: item_to_repeat for k in other if k not in required_dict}
+            )
+        return all(other.get(k, None) == v for k, v in required_dict.items())
 
     def __repr__(self) -> str:
         return "<AnyDict {!r}>".format(self.required_dict)
@@ -98,7 +121,8 @@ class AnyList(AnyBase):
         self.has_ellipsis = items[-1] == ...
         self.required_items = items[:-1] if self.has_ellipsis else items
 
-    def eq(self, other: object) -> bool:
+    def eq(self, other: t.Any) -> bool:
+        """Override"""
         if not isinstance(other, list):
             return False
         required_items = self.required_items
@@ -122,7 +146,8 @@ class AnySet(AnyBase):
     def __init__(self, items: t.Set[t.Any]) -> None:
         self.required_items = items
 
-    def eq(self, other: object) -> bool:
+    def eq(self, other: t.Any) -> bool:
+        """Override"""
         if not isinstance(other, list):
             return False
         return all(x in other for x in self.required_items)
@@ -142,7 +167,8 @@ class AnyType(AnyBase):
     def __init__(self, type_: t.Type[JsonValueType]) -> None:
         self.type_ = type_
 
-    def eq(self, other: object) -> bool:
+    def eq(self, other: t.Any) -> bool:
+        """Override"""
         # distinguish `bool` and `int` cos Python tell True about `isinstance(True, int)`
         if isinstance(other, bool) and self.type_ is int:
             return False
@@ -165,9 +191,10 @@ class AnyUnion(AnyBase):
 
     def __repr__(self) -> str:
         objs_repr = map(repr, self.objs)
-        return "<AnyUnion {!r}>".format("|".join(objs_repr))
+        return "<AnyUnion {}>".format("|".join(objs_repr))
 
-    def eq(self, other: object) -> bool:
+    def eq(self, other: t.Any) -> bool:
+        """Override"""
         return any(obj == other for obj in self.objs)
 
 
@@ -176,7 +203,8 @@ class Anything(AnyBase):
     Schema representing literally anything
     """
 
-    def eq(self, other: object) -> bool:
+    def eq(self, other: t.Any) -> bool:
+        """Override"""
         return True
 
     def __repr__(self) -> str:
