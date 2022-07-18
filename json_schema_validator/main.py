@@ -131,7 +131,7 @@ class AnyType(AnyBase):
     `type_`: the value type to match
     """
 
-    def __init__(self, type_: JsonValueType) -> None:
+    def __init__(self, type_: t.Type[JsonValueType]) -> None:
         self.type_ = type_
 
     def eq(self, other: object) -> bool:
@@ -175,7 +175,7 @@ class Anything(AnyBase):
         return "<Anything>"
 
 
-def Any(*objs: t.Any) -> t.Union[AnyType, AnyDict, AnyList, AnySet, Anything]:
+def Any(*objs: t.Any) -> t.Any:
     """
     Unified API to define a schema of JSON
 
@@ -188,6 +188,7 @@ def Any(*objs: t.Any) -> t.Union[AnyType, AnyDict, AnyList, AnySet, Anything]:
       : a dict, it matches JSON dict with AnyDict
       : a list, it matches JSON list with AnyList
       : a set, it matches JSON list (unordered) AnySet
+      : anything else, it matches exactly the given object
     """
     if len(objs) == 0:
         return Anything()
@@ -202,9 +203,6 @@ def Any(*objs: t.Any) -> t.Union[AnyType, AnyDict, AnyList, AnySet, Anything]:
         elif type(obj) is set:
             return AnySet(obj)
         else:
-            raise ValueError(
-                f"Invalid schema: {obj}."
-                " Consider using it as a schema without wrapping as Any."
-            )
+            return obj
     else:
         return AnyUnion(Any(obj) for obj in objs)

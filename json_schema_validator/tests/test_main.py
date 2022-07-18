@@ -64,6 +64,7 @@ class JsonSchemaValidatorTest(unittest.TestCase):
         self.assertTrue(JsonValidator(Any()).validate(""))
         self.assertTrue(JsonValidator(Any()).validate(1))
         self.assertTrue(JsonValidator(Any()).validate({"foo": "bar", "xyz": 123}))
+        self.assertIs(Any(3), 3)
 
     def test_any_dict(self) -> None:
         self.assertTrue(JsonValidator(Any({})).validate({}))
@@ -72,10 +73,6 @@ class JsonSchemaValidatorTest(unittest.TestCase):
 
         self.assertFalse(JsonValidator(Any({})).validate(""))
         self.assertTrue(JsonValidator(Any({})).validate({"a": 1, "b": 2}))
-
-        # invalid schema object for Any
-        with self.assertRaises(ValueError):
-            JsonValidator(Any(3)).validate({})
 
     def test_any_list(self) -> None:
         self.assertTrue(JsonValidator(Any([1, 2])).validate([1, 2]))
