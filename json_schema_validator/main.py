@@ -1,101 +1,211 @@
+"""
+A simple JSON validator by schema
+"""
+
 from __future__ import annotations
 
 import json
 import typing as t
+from abc import ABC, abstractmethod
+
+DEBUG = False  # enable debug to raise errors for non-match
+
+JsonValueType = t.Union[int, float, bool, str, dict, list]
 
 
-class JSONValidator:
-    pass
+class JsonValidator:
+    def __init__(self, schema: t.Any) -> None:
 
-    @classmethod
-    def validate(cls, schema, j):
-        return schema == j
+        self.schema = schema
+
+    @staticmethod
+    def debug(enable: bool) -> None:
+        global DEBUG
+        DEBUG = enable
+
+    def validate_str(self, json_str: str) -> bool:
+        """
+        Validate a JSON string with the schema
+        """
+        json_obj = json.loads(json_str)
+        return self.validate(json_obj)
+
+    def validate(self, json_obj: t.Any) -> bool:
+        """
+        Validate a Python object with the schema
+        """
+        return self.schema == json_obj
 
 
-class AnyBase:
-    def eq(self, other) -> bool:
+class AnyBase(ABC):
+    """
+    Base Any class to redefine `eq`
+    """
+
+    @abstractmethod
+    def eq(self, other: object) -> bool:
         pass
 
-    def __eq__(self, other):
-        return self.eq(other)
+    def __eq_impl(self, other: object) -> bool:
+        is_equal = self.eq(other)
+        if DEBUG and not is_equal:
+            raise TypeError(
+                "Schema does not match:\n{!r}\n---\n{!r}".format(self, other)
+            )
+        return is_equal
 
-    def __req__(self, other):
-        return self.eq(other)
+    def __eq__(self, other: object) -> bool:
+        return self.__eq_impl(other)
+
+    def __req__(self, other: object) -> bool:
+        return self.__eq_impl(other)
+
+    def __hash__(self) -> int:
+        return super().__hash__()
 
 
 class AnyDict(AnyBase):
-    def __init__(self, d) -> None:
-        self.required_dict = d
+    """
+    Schema representing a JSON dict
 
-    def eq(self, other) -> bool:
+    Params:
+    `schema`: dict object defining required key-values
+    """
+
+    def __init__(self, schema: t.Dict[str, t.Any]) -> None:
+        self.required_dict = schema
+
+    def eq(self, other: object) -> bool:
         if not isinstance(other, dict):
             return False
-        for k, v in self.required_dict.items():
-            if k not in other:
-                return False
-            if other[k] != v:
-                return False
-        return True
+        return all(other.get(k, None) == v for k, v in self.required_dict.items())
+
+    def __repr__(self) -> str:
+        return "<AnyDict {}>".format(self.required_dict)
 
 
 class AnyList(AnyBase):
-    def __init__(self, d) -> None:
-        self.required_list = d
+    """
+    Schema representing a JSON list
 
-    def eq(self, other) -> bool:
+    Params:
+    `items`: a list object defining required values
+    """
+
+    def __init__(self, items: t.List[t.Any]) -> None:
+        self.required_items = items
+
+    def eq(self, other: object) -> bool:
         if not isinstance(other, list):
             return False
-        for x in self.required_list:
-            if x not in other:
-                return False
-        return True
+        return all(a == b for a, b in zip(self.required_items, other))
+
+    def __repr__(self) -> str:
+        return "<AnyList {}>".format(self.required_items)
+
+
+class AnySet(AnyBase):
+    """
+    Schema representing a JSON list (unordered)
+
+    Params:
+    `items`: a set object defining required values
+    """
+
+    def __init__(self, items: t.List[t.Any]) -> None:
+        self.required_items = items
+
+    def eq(self, other: object) -> bool:
+        if not isinstance(other, list):
+            return False
+        return all(x in other for x in self.required_items)
+
+    def __repr__(self) -> str:
+        return "<AnySet {}>".format(self.required_items)
 
 
 class AnyType(AnyBase):
-    def __init__(self, d: t.Union[int, float, bool, str, dict, list]) -> None:
-        self.type_ = d
+    """
+    Schema representing any JSON value type
 
-    def eq(self, other) -> bool:
+    Params:
+    `type_`: the value type to match
+    """
+
+    def __init__(self, type_: JsonValueType) -> None:
+        self.type_ = type_
+
+    def eq(self, other: object) -> bool:
+        # distinguish `bool` and `int` cos Python tell True about `isinstance(True, int)`
         if isinstance(other, bool) and self.type_ is int:
             return False
         return isinstance(other, self.type_)
 
-    def __repr__(self):
-        return "Any{}".format(self.type_.__name__.capitalize())
+    def __repr__(self) -> str:
+        return "<Any{}>".format(self.type_.__name__.capitalize())
 
 
 class AnyUnion(AnyBase):
-    def __init__(self, objs):
-        self.objs = []
-        for obj in objs:
-            if obj in [int, float, bool, str, dict, list]:
-                self.objs.append(AnyType(obj))
-            elif type(obj) is dict:
-                self.objs.append(AnyDict(obj))
-            elif type(obj) is list:
-                self.objs.append(AnyList(obj))
-            else:
-                self.objs.append(obj)
+    """
+    Schema representing an union of any schema
 
-    def __repr__(self):
-        if len(self.objs) == 1:
-            return repr(self.objs[0])
+    Params:
+    `schema`: a list of schema objects
+    """
+
+    def __init__(self, objs: t.Iterable[t.Any]) -> None:
+        self.objs = objs
+
+    def __repr__(self) -> str:
         objs_repr = map(repr, self.objs)
-        return "<AnyUnion {}>".format(" | ".join(objs_repr))
+        return "<AnyUnion {}>".format("|".join(objs_repr))
 
-    def eq(self, other):
-        print(1, self, other)
+    def eq(self, other: object) -> bool:
         return any(obj == other for obj in self.objs)
 
 
-class Any(AnyBase):
-    def __init__(self, *objs):
-        if len(objs) == 0:
-            self.obj = None
+class Anything(AnyBase):
+    """
+    Schema representing literally anything
+    """
+
+    def eq(self, other: object) -> bool:
+        return True
+
+    def __repr__(self) -> str:
+        return "<Anything>"
+
+
+def Any(*objs: t.Any) -> t.Union[AnyType, AnyDict, AnyList, AnySet, Anything]:
+    """
+    Unified API to define a schema of JSON
+
+    Params:
+    `objs`: any schema object to match;
+    - if nothing is given, it matches anything;
+    - if multiple is given, it matches an union;
+    - if one schema is given, for:
+      : a JSON value type, it matches any value of that type
+      : a dict, it matches JSON dict with AnyDict
+      : a list, it matches JSON list with AnyList
+      : a set, it matches JSON list (unordered) AnySet
+    """
+    if len(objs) == 0:
+        return Anything()
+    elif len(objs) == 1:
+        obj = objs[0]
+        if obj in t.get_args(JsonValueType):
+            return AnyType(obj)
+        elif type(obj) is dict:
+            return AnyDict(obj)
+        elif type(obj) is list:
+            return AnyList(obj)
+        elif type(obj) is set:
+            return AnySet(obj)
         else:
-            self.obj = AnyUnion(objs)
-
-    def eq(self, other) -> bool:
-        return True if self.obj is None else self.obj.eq(other)
-
-
+            raise ValueError(
+                f"Invalid schema: {obj}."
+                " Consider using it as a schema without wrapping as Any."
+            )
+    else:
+        return AnyUnion(Any(obj) for obj in objs)
